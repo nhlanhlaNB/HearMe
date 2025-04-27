@@ -165,47 +165,41 @@ document.addEventListener('DOMContentLoaded', () => {
     // Translate text using OpenRouter API with fallback
     async function translateText(text) {
         const direction = languageDirection.value;
-        const sourceLang = direction === 'fr-en' ? 'FR' : 'EN';
-        const targetLang = direction === 'fr-en' ? 'EN' : 'FR';
+        const langPair = direction === 'fr-en' ? { from: 'fr', to: 'en' } : { from: 'en', to: 'fr' };
     
-        // Temporarily bypass API for testing
-        // return getMockTranslation(text, direction.split('-')[0], direction.split('-')[1]);
-    
+        console.log("Attempting to translate:", text);
+        
         try {
-            const response = await fetch('https://api-free.deepl.com/v2/translate', {
+            const response = await fetch('http://localhost:5000/translate', {
                 method: 'POST',
-                headers: {
-                    'Authorization': 'c95f0fea-d00b-42c8-b3ef-07f361efe58d:fx',
+                headers: { 
                     'Content-Type': 'application/json',
+                    'Accept': 'application/json'
                 },
                 body: JSON.stringify({
-                    text: [text.trim()],
-                    source_lang: sourceLang,
-                    target_lang: targetLang,
-                }),
+                    text: text,
+                    from: langPair.from,
+                    to: langPair.to
+                })
             });
-    
-            console.log('API Response Status:', response.status);
-    
+            
             if (!response.ok) {
-                const errorData = await response.json();
-                console.error('DeepL API Error:', errorData);
-                throw new Error(errorData.message || 'API request failed');
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-    
-            const result = await response.json();
-            console.log('Full API Response:', result);
-    
-            return result.translations[0].text;
+            
+            const data = await response.json();
+            console.log("Translation response:", data);
+            
+            if (!data.success) {
+                throw new Error(data.error || 'Translation failed');
+            }
+            
+            return data.translation;
         } catch (error) {
-            console.error('Complete Translation Error:', {
-                error: error.toString(),
-                stack: error.stack
-            });
-            const errorMessage = `Translation failed: ${error.message}. Using mock translation.`;
-            alert(errorMessage);
-            targetTextArea.value = errorMessage;
-            return getMockTranslation(text, direction.split('-')[0], direction.split('-')[1]);
+            console.error("Translation error:", error);
+            // Show error in UI
+            targetTextArea.value = `Error: ${error.message}`;
+            return getMockTranslation(text, langPair.from, langPair.to);
         }
     }
 
